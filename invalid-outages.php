@@ -16,25 +16,26 @@ echo "<h1>APM Outage Validator</h1>";
 
 //Define initial SQL query
 	 $sql1 = "SELECT * FROM (SELECT DISTINCT ON (execution_plan, outage_start, outage_end) *
-			FROM (SELECT outages.execution_plan, outages.outage_start::timestamp without time zone AS outage_start, outages.outage_end::timestamp without time zone AS outage_end, outages.duration,
-				(CASE
-				WHEN invalid_outages.change IS NULL or invalid_outages.change='validate' THEN 'VALID' 
-				WHEN invalid_outages.change='dismiss' or invalid_outages.change='uptime' THEN 'INVALID'
-				ELSE 'INVALID'
-				END) AS valid,
-				invalid_outages.changetime,
-				invalid_outages.change
-				FROM portal.outages
-				LEFT JOIN portal.invalid_outages on(outages.execution_plan=portal.invalid_outages.execution_plan and outages.outage_start=portal.invalid_outages.outage_start)
-				where  outages.duration>15 and outages.outage_start >= date_trunc('month'::text, 'now'::text::date::timestamp with time zone) AND outages.outage_end < date_trunc('month'::text, 'now'::text::date + '1 mon'::interval) and changetime IS NULL
-				ORDER BY invalid_outages.changetime DESC) as a
+				FROM (SELECT outages.execution_plan, outages.outage_start, to_char(outages.outage_start, 'MM-DD-YYYY HH24:MI:SS') as start,outages.outage_end, to_char(outages.outage_end, 'MM-DD-YYYY HH24:MI:SS') as end,outages.duration,
+							(CASE
+							WHEN invalid_outages.change IS NULL or invalid_outages.change='validate' THEN 'VALID' 
+							WHEN invalid_outages.change='dismiss' or invalid_outages.change='uptime' THEN 'INVALID'
+							ELSE 'INVALID'
+							END) AS valid,
+							invalid_outages.changetime,
+							invalid_outages.change
+							FROM portal.outages
+							LEFT JOIN portal.invalid_outages on(outages.execution_plan=portal.invalid_outages.execution_plan and outages.outage_start=portal.invalid_outages.outage_start)
+							where  outages.duration>15 and outages.outage_start >= date_trunc('month'::text, 'now'::text::date::timestamp with time zone) AND outages.outage_end < date_trunc('month'::text, 'now'::text::date + '1 mon'::interval) and changetime IS NULL
+							ORDER BY invalid_outages.changetime DESC) as a
 			UNION
-			SELECT execution_plan, outage_start, outage_end, duration, (CASE
-				WHEN change IS NULL or change='validate' THEN 'VALID' 
-				WHEN change='dismiss' or change='uptime' THEN 'INVALID'
-				ELSE 'INVALID'
-				END) AS valid,
-				changetime,change
+			SELECT execution_plan, outage_start, to_char(outage_start, 'MM-DD-YYYY HH24:MI:SS') as start, outage_end, to_char(outage_end, 'MM-DD-YYYY HH24:MI:SS') as end, duration,  
+			(CASE
+							WHEN change IS NULL or change='validate' THEN 'VALID' 
+							WHEN change='dismiss' or change='uptime' THEN 'INVALID'
+							ELSE 'INVALID'
+							END) AS valid,
+							changetime,change
 				FROM (
 					SELECT DISTINCT ON (execution_plan,outage_start,outage_end) *
 					FROM portal.invalid_outages
@@ -57,8 +58,8 @@ echo "<h1>APM Outage Validator</h1>";
 				$row=$value;
 				echo "<div class='outage'>";
 				echo "<form method='POST' action='invalid.php' name='validate'>";
-				echo "<p>".$row['execution_plan']."</p>";
-				echo "<p>Start: ".$row['outage_start']."   End: ".$row['outage_end']."   Duration: ".$row['duration']." minutes</p>";
+				echo "<p>".$row['execution_plan']." - ".$row['valid']."</p>";
+				echo "<p>Start: ".$row['start']."&nbsp;&nbsp;&nbsp;&nbsp;"."End: ".$row['end']."</p><p>Duration: ".$row['duration']." minutes</p>";
 				echo "<input type=hidden name='execution_plan' value='".$row['execution_plan']."'></input>";
 				echo "<input type=hidden name='outage_start' value='".$row['outage_start']."'></input>";
 				echo "<input type=hidden name='outage_end' value='".$row['outage_end']."'></input>";
