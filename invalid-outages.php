@@ -15,42 +15,30 @@ echo "<h1>APM Outage Validator</h1>";
 	$dbconn = pg_connect(<Database connection info here>) or die('Could not connect: ' . pg_last_error());
 
 //Define initial SQL query
-	  /*$sql1 = "SELECT outages.execution_plan, outages.outage_start::timestamp without time zone AS outage_start, outages.outage_end::timestamp without time zone AS outage_end, duration,
-    	(CASE
-    	WHEN invalid_outages.change IS NULL or invalid_outages.change='validate' THEN 'VALID'
-		WHEN invalid_outages.change='dismiss' or invalid_outages.change='uptime' THEN 'INVALID'
-    	ELSE 'INVALID'
-  		END) AS valid,
-        invalid_outages.changetime,
-		invalid_outages.change
-		FROM portal.outages
-        LEFT JOIN portal.invalid_outages on(outages.execution_plan=portal.invalid_outages.execution_plan and outages.outage_start=portal.invalid_outages.outage_start)
-		where  duration>15 and outages.outage_start >= date_trunc('month'::text, 'now'::text::date::timestamp with time zone) AND outages.outage_end < date_trunc('month'::text, 'now'::text::date + '1 mon'::interval)
-		ORDER BY valid ASC,outage_start,outages.execution_plan;";*/
 	 $sql1 = "SELECT * FROM (SELECT DISTINCT ON (execution_plan, outage_start, outage_end) *
-				FROM (SELECT outages.execution_plan, outages.outage_start::timestamp without time zone AS outage_start, outages.outage_end::timestamp without time zone AS outage_end, outages.duration,
-							(CASE
-							WHEN invalid_outages.change IS NULL or invalid_outages.change='validate' THEN 'VALID' 
-							WHEN invalid_outages.change='dismiss' or invalid_outages.change='uptime' THEN 'INVALID'
-							ELSE 'INVALID'
-							END) AS valid,
-							invalid_outages.changetime,
-							invalid_outages.change
-							FROM portal.outages
-							LEFT JOIN portal.invalid_outages on(outages.execution_plan=portal.invalid_outages.execution_plan and outages.outage_start=portal.invalid_outages.outage_start)
-							where  outages.duration>15 and outages.outage_start >= '2018-12-01 00:00:00' AND outages.outage_end < '2018-12-31 23:59:59' and changetime IS NULL
-							ORDER BY invalid_outages.changetime DESC) as a
+			FROM (SELECT outages.execution_plan, outages.outage_start::timestamp without time zone AS outage_start, outages.outage_end::timestamp without time zone AS outage_end, outages.duration,
+				(CASE
+				WHEN invalid_outages.change IS NULL or invalid_outages.change='validate' THEN 'VALID' 
+				WHEN invalid_outages.change='dismiss' or invalid_outages.change='uptime' THEN 'INVALID'
+				ELSE 'INVALID'
+				END) AS valid,
+				invalid_outages.changetime,
+				invalid_outages.change
+				FROM portal.outages
+				LEFT JOIN portal.invalid_outages on(outages.execution_plan=portal.invalid_outages.execution_plan and outages.outage_start=portal.invalid_outages.outage_start)
+				where  outages.duration>15 and outages.outage_start >= date_trunc('month'::text, 'now'::text::date::timestamp with time zone) AND outages.outage_end < date_trunc('month'::text, 'now'::text::date + '1 mon'::interval) and changetime IS NULL
+				ORDER BY invalid_outages.changetime DESC) as a
 			UNION
 			SELECT execution_plan, outage_start, outage_end, duration, (CASE
-							WHEN change IS NULL or change='validate' THEN 'VALID' 
-							WHEN change='dismiss' or change='uptime' THEN 'INVALID'
-							ELSE 'INVALID'
-							END) AS valid,
-							changetime,change
+				WHEN change IS NULL or change='validate' THEN 'VALID' 
+				WHEN change='dismiss' or change='uptime' THEN 'INVALID'
+				ELSE 'INVALID'
+				END) AS valid,
+				changetime,change
 				FROM (
 					SELECT DISTINCT ON (execution_plan,outage_start,outage_end) *
 					FROM portal.invalid_outages
-					where outage_start >= '2018-12-01 00:00:00' AND outage_end < '2018-12-31 23:59:59'
+					where outage_start >= date_trunc('month'::text, 'now'::text::date::timestamp with time zone) AND outage_end < date_trunc('month'::text, 'now'::text::date + '1 mon'::interval)
 					ORDER BY execution_plan,outage_start,outage_end,changetime DESC)
 					as b) as c
 			 ORDER BY outage_start;";
